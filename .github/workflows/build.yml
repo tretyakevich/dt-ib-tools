@@ -20,13 +20,20 @@ jobs:
       PR_REF: "${{ github.event_name == 'pull_request_target' && format('refs/pull/{0}/merge', github.event.pull_request.number) || '' }}"
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       if: inputs.analyze
       with:
         fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
         ref: ${{ env.PR_REF }}
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       if: ${{ !inputs.analyze }}
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v5
+      with:
+       distribution: 'zulu'
+       java-version: 17
+       java-package: jdk+fx
 
     - name: Set up Maven 3.9.6
       uses: s4u/setup-maven-action@v1.12.0
@@ -39,39 +46,40 @@ jobs:
         sudo swapoff -a
         sudo rm -f /swapfile
         sudo apt clean
-        docker rmi $(docker image ls -aq)
+        # docker rmi $(docker image ls -aq) || true
         df -h
 
-    - name: Cache maven repo
-      uses: actions/cache@v2
-      if: github.event_name == 'push' || github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-latest-${{ hashFiles('**/pom.xml') }}-${{ hashFiles('targets/default/default.target') }}
-        restore-keys: |
-          ${{ runner.os }}-maven-latest-
+    - name: Build with Maven
+      working-directory: ./
+      run: |
+        Xvfb :5 -screen 0 1280x1024x8 -fbdir /tmp &
+        export DISPLAY=:5
+        mvn clean verify -PSDK,find-bugs -Dtycho.localArtifacts=ignore -Dtycho.p2.httptransport.type=JavaUrl -B -V
 
     - name: Cache SonarCloud packages
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       if: inputs.analyze
       with:
         path: ~/.sonar/cache
         key: ${{ runner.os }}-sonar
         restore-keys: ${{ runner.os }}-sonar
   
-    - name: Build with Maven
+#    - name: Set up JDK 17
+#      if: inputs.analyze
+#      uses: actions/setup-java@v1
+#      with:
+#        java-version: 17
+#        java-package: jdk+fx
+
+    - name: Sonar scan
+      # Do not start Sonar-scanning for forks without label, and pass fork PR number directly
+      if: inputs.analyze
       env:
-        # Do not start Sonar-scanning for forks without label, and pass fork PR number directly
-        SONAR_PARAM: "${{ inputs.analyze && format('{0}{1}', 'org.sonarsource.scanner.maven:sonar-maven-plugin:sonar', env.PR_NUMBER) || '' }}"
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
         SONAR_TOKEN: ${{ secrets.sonar_token }}
       working-directory: ./
-      run: |
-        Xvfb :5 -screen 0 1280x1024x8 -fbdir /tmp &
-        export DISPLAY=:5
-        echo "Sonar param: \"${SONAR_PARAM}\""
-        mvn clean verify ${SONAR_PARAM} -PSDK,find-bugs -Dtycho.localArtifacts=ignore -B -V -T 1C
-
+      run: mvn compile org.sonarsource.scanner.maven:sonar-maven-plugin:sonar ${{ env.PR_NUMBER }} -Dtycho.localArtifacts=ignore -B -V
+        
     - name: Publish Test Report
       uses: scacap/action-surefire-report@v1
       if: inputs.analyze
