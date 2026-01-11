@@ -56,29 +56,12 @@ jobs:
         export DISPLAY=:5
         mvn clean verify -Dtycho.localArtifacts=ignore -Dtycho.p2.httptransport.type=JavaUrl -B -V
 
-    - name: Cache SonarCloud packages
-      uses: actions/cache@v4
-      if: inputs.analyze
-      with:
-        path: ~/.sonar/cache
-        key: ${{ runner.os }}-sonar
-        restore-keys: ${{ runner.os }}-sonar
-  
 #    - name: Set up JDK 17
 #      if: inputs.analyze
 #      uses: actions/setup-java@v1
 #      with:
 #        java-version: 17
 #        java-package: jdk+fx
-
-    - name: Sonar scan
-      # Do not start Sonar-scanning for forks without label, and pass fork PR number directly
-      if: inputs.analyze
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Needed to get PR information, if any
-        SONAR_TOKEN: ${{ secrets.sonar_token }}
-      working-directory: ./
-      run: mvn compile org.sonarsource.scanner.maven:sonar-maven-plugin:sonar ${{ env.PR_NUMBER }} -Dtycho.localArtifacts=ignore -B -V
         
     - name: Publish Test Report
       uses: scacap/action-surefire-report@v1
