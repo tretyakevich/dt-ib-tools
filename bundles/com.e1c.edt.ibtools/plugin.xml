@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?eclipse version="3.4"?>
 <plugin>
+    <!-- Auto-activate bundle to supply commands -->
     <extension point="com._1c.g5.wiring.serviceProvider">
         <bundle symbolicName="com.e1c.edt.ibtools"/>
     </extension>
@@ -8,7 +9,8 @@
    <extension
           point="com.e1c.g5.v8.dt.cli.api.cliCommand">
         <cliCommand
-            class="com.e1c.edt.internal.ibtools.ExecutableExtensionFactory:com.e1c.edt.internal.ibtools.cli.GenerateIBSyncStateCmd">
+            class="com.e1c.edt.internal.ibtools.ExecutableExtensionFactory:com.e1c.edt.internal.ibtools.cli.GenerateIBSyncStateCmd" 
+            tolerateTempWorkspace="true">
         </cliCommand>
    </extension>
 </plugin>
