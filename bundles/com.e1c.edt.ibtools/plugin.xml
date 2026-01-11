@@ -8,7 +8,7 @@
    <extension
           point="com.e1c.g5.v8.dt.cli.api.cliCommand">
         <cliCommand
-            class="com.e1c.internal.ibtools.ExecutableExtensionFactory:com.e1c.internal.ibtools.cli.GenerateIBSyncStateCmd">
+            class="com.e1c.edt.internal.ibtools.ExecutableExtensionFactory:com.e1c.edt.internal.ibtools.cli.GenerateIBSyncStateCmd">
         </cliCommand>
    </extension>
 </plugin>

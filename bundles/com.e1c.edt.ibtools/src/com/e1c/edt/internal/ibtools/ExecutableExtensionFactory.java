@@ -11,7 +11,7 @@ import com.google.inject.Injector;
 /**
  * Guice module aware executable extension factory.
  *
- * @author Artem Iliukhin
+ * @author Alexander Tretyakevich
  */
 public class ExecutableExtensionFactory
     extends BaseCliCommandExtensionFactory

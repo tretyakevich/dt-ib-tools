@@ -33,8 +33,13 @@ import com.google.inject.Inject;
 public class GenerateIBSyncStateCmd
     extends BaseCliCommand
 {
-    @Inject
     private EdtIBSynchronizationStateManager synchronizationStateManager;
+
+    @Inject
+    public GenerateIBSyncStateCmd(EdtIBSynchronizationStateManager synchronizationStateManager)
+    {
+        this.synchronizationStateManager = synchronizationStateManager;
+    }
 
     /**
      * Formats the BSL files located in a project directory specified by the --project argument.
