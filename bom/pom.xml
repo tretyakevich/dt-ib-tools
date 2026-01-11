@@ -99,6 +99,13 @@
             <resolver>p2</resolver>
             <executionEnvironment>JavaSE-17</executionEnvironment>
             <includePackedArtifacts>false</includePackedArtifacts>
+            <target>
+              <artifact>
+                <groupId>com.e1c.edt.ibtools</groupId>
+                <artifactId>default</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+              </artifact>
+            </target>
             <environments>
               <environment>
                 <os>win32</os>
