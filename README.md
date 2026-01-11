@@ -16,7 +16,9 @@ Additional 1C:EDT tools for 1C:Entreprise infobase manipulations
 * И для того, чтобы не тратить время на формальную синхронизацию данных проекта и информационной базы (для больших проектов - это серьезные затраты времени), производится прямая замена хранимого состояния синхронизации проекта 1C:EDT и соответствующей информационной базы
 
 Пример:
+...
 generate-ib-sync-state --project X:/test/bsp --cdi X:/test/ConfigDumpInfo.xml --gen-id 6d1854a9ee07804a820f4a081f6a40e400000000 --ib-uuid 73e63dd3-3285-45a7-b7e5-d113f81dc2be --target X:/test/target 
+...
 
 ConfigDumpInfo.xml и GenerationId могут быть получен путем вызова соответствующих команд через CLI конфигуратора 1С:Предприятие (/DumpConfigToFiles -configDumpInfoOnly и  /GetConfigGenerationID соотвественно)
 
