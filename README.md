@@ -1,2 +1,2 @@
 # dt-ib-tools
-Additional tools for 1C:Entreprise infobase manipulations for 1C:EDT
+Additional 1C:EDT tools for 1C:Entreprise infobase manipulations

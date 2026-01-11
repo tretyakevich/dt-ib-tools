@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?eclipse version="3.4"?>
+<plugin>
+   <extension
+          point="com.e1c.g5.v8.dt.cli.api.cliCommand">
+        <cliCommand
+            class="com.e1c.internal.ibtools.ExecutableExtensionFactory:com.e1c.internal.ibtools.cli.GenerateIBSyncStateCmd">
+        </cliCommand>
+   </extension>
+</plugin>
