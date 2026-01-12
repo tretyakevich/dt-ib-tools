@@ -11,6 +11,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
@@ -173,7 +174,10 @@ public class EdtIBSynchronizationStateManager
 
     private static void copyConfigDumpInfo(Path sourceConfigDumpInfoFile, Path targetFolder)
     {
-        // TODO validation of file existance
+        if (!Files.exists(sourceConfigDumpInfoFile) || Files.isDirectory(sourceConfigDumpInfoFile))
+        {
+            throw new IllegalStateException("sourceConfigDumpInfoFile is missing"); //$NON-NLS-1$
+        }
         try
         {
             Files.copy(sourceConfigDumpInfoFile, targetFolder.resolve(IConfigDumpInfoStore.CONFIG_DUMP_INFO),
@@ -210,15 +214,16 @@ public class EdtIBSynchronizationStateManager
 
     private static ProjectInfo getProjectInfo(Path sourceProjectFolder)
     {
-        Path projectManifestPath = sourceProjectFolder.resolve(PROJECT_FILE);
-        if (!Files.exists(projectManifestPath))
+        Path projectDefinitionPath = sourceProjectFolder.resolve(PROJECT_FILE);
+        if (!Files.exists(projectDefinitionPath))
         {
-            // TODO error handling
+            throw new IllegalStateException("projectDefinitionPath is missing"); //$NON-NLS-1$
         }
 
         Set<String> natures = new HashSet<>();
         String projectName = null;
-        try (BufferedReader projectDefinitionReader = new BufferedReader(new FileReader(projectManifestPath.toFile())))
+        try (BufferedReader projectDefinitionReader =
+            new BufferedReader(new FileReader(projectDefinitionPath.toFile(), Charset.forName("UTF-8")))) //$NON-NLS-1$
         {
             String line;
             boolean naturesBlock = false;
@@ -272,10 +277,8 @@ public class EdtIBSynchronizationStateManager
         }
         else
         {
-            // TODO throw an exception
+            throw new IllegalStateException("Unsupported project type"); //$NON-NLS-1$
         }
-
-        return null;
     }
 
     /**
