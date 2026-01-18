@@ -92,6 +92,31 @@ public class GenerateIBSyncStateCmd
         }
     }
 
+    @CliCommand(command = "compare-ib-sync-states", value = "CompareIBSyncStatesCmd_Description")
+    public void c1_compare_sync_states(
+        @Argument(value = "--source",
+            descriptor = "CompareIBSyncStatesCmd_Source_Synchronization_Index_Location") String sourceIndexFolder,
+        @Argument(value = "--destination",
+            descriptor = "CompareIBSyncStatesCmd_Destination_Synchronization_Index_Location") String destinationIndexFolder)
+    {
+        Preconditions.checkNotNull(sourceIndexFolder);
+        Preconditions.checkNotNull(destinationIndexFolder);
+
+        try
+        {
+            Path sourceIndexFolderPath = validateAndGetFolder(sourceIndexFolder, location -> MessageFormat
+                .format(Messages.CompareIBSyncStatesCmd_SourceIndexFolder__0__does_not_exist, location));
+            Path destinationIndexFolderPath = validateAndGetFile(destinationIndexFolder, location -> MessageFormat
+                .format(Messages.CompareIBSyncStatesCmd_DestinationIndexFolder__0__does_not_exist, location));
+
+            synchronizationStateManager.compareIBSyncStates(sourceIndexFolderPath, destinationIndexFolderPath);
+        }
+        catch (UncheckedIOException e)
+        {
+            throw new CliApiException(e.getMessage(), e);
+        }
+    }
+
     /*
      * Validates input symbolic path and get a target folder path if it exists
      */

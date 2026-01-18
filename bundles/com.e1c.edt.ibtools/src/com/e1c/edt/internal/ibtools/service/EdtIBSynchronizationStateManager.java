@@ -5,7 +5,10 @@ package com.e1c.edt.internal.ibtools.service;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
@@ -19,6 +22,8 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.text.MessageFormat;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -45,6 +50,8 @@ import com.google.common.hash.Hashing;
  */
 public class EdtIBSynchronizationStateManager
 {
+    public static final int PATH_SEPARATOR = '/';
+
     private static final String PROJECT_FILE = ".project"; //$NON-NLS-1$
     private static final String SOURCE_FOLDER = "src"; //$NON-NLS-1$
 
@@ -87,6 +94,266 @@ public class EdtIBSynchronizationStateManager
             targetFolder);
     }
 
+    public void compareIBSyncStates(Path sourceStateFolder, Path destinationStateFolder)
+    {
+        // Step 1: parse source state
+        InfobaseSyncState sourceState = parseState(sourceStateFolder);
+        // Step 2: parse destination state
+        InfobaseSyncState destinationState = parseState(destinationStateFolder);
+
+        if (sourceState != null && destinationState != null)
+        {
+            compareSyncStates(sourceState, destinationState, "Configuration"); //$NON-NLS-1$
+
+            // TODO extension states
+            if (sourceState.getExtensionSyncStates().isEmpty())
+            {
+
+            }
+        }
+    }
+
+    private void compareSyncStates(InfobaseSyncState sourceState, InfobaseSyncState destinationState,
+        String projectName)
+    {
+        System.out.println("State of: " + projectName); //$NON-NLS-1$
+        if (!sourceState.getConfigurationUUID().equals(destinationState.getConfigurationUUID()))
+        {
+            System.out.println("  ConfigurationUUID S:" + sourceState.getConfigurationUUID() + " D:" //$NON-NLS-1$//$NON-NLS-2$
+                + destinationState.getConfigurationUUID());
+        }
+
+        if (!sourceState.getGenerationId().equals(destinationState.getGenerationId()))
+        {
+            System.out.println("  GenerationId S:" + sourceState.getConfigurationUUID() + " D:" //$NON-NLS-1$//$NON-NLS-2$
+                + destinationState.getConfigurationUUID());
+        }
+
+        // Compare EDT resource indexes
+        Set<String> sourceOnlyKeys = new HashSet<>(sourceState.getEdtResourceSignatures().keySet());
+        sourceOnlyKeys.removeAll(destinationState.getEdtResourceSignatures().keySet());
+        if (!sourceOnlyKeys.isEmpty())
+        {
+            System.out.println("  Source only EDT resources:"); //$NON-NLS-1$
+            for (String key : sourceOnlyKeys)
+            {
+                System.out.println("   " + key); //$NON-NLS-1$
+            }
+        }
+
+        Set<String> destinationOnlyKeys = new HashSet<>(destinationState.getEdtResourceSignatures().keySet());
+        destinationOnlyKeys.removeAll(sourceState.getEdtResourceSignatures().keySet());
+        if (!destinationOnlyKeys.isEmpty())
+        {
+            System.out.println("  Destination only EDT resources:"); //$NON-NLS-1$
+            for (String key : destinationOnlyKeys)
+            {
+                System.out.println("   " + key); //$NON-NLS-1$
+            }
+        }
+
+        Set<String> bothSideKeys = new HashSet<>(sourceState.getEdtResourceSignatures().keySet());
+        bothSideKeys.retainAll(destinationState.getEdtResourceSignatures().keySet());
+        boolean first = true;
+        for (String key : bothSideKeys)
+        {
+            byte[] sourceSignature = sourceState.getEdtResourceSignatures().get(key);
+            byte[] destinationSignature = destinationState.getEdtResourceSignatures().get(key);
+
+            if (!Arrays.equals(sourceSignature, destinationSignature))
+            {
+                if (first)
+                {
+                    System.out.println("  EDT resource signature differences"); //$NON-NLS-1$
+                    first = false;
+                }
+
+                System.out.println("    " + key); //$NON-NLS-1$
+            }
+        }
+
+        // Compare 1C:Enterprise resource indexes
+        sourceOnlyKeys = new HashSet<>(sourceState.getPlatformResourceVersions().keySet());
+        sourceOnlyKeys.removeAll(destinationState.getPlatformResourceVersions().keySet());
+        if (!sourceOnlyKeys.isEmpty())
+        {
+            System.out.println("  Source only 1C:Enterprise resources:"); //$NON-NLS-1$
+            for (String key : sourceOnlyKeys)
+            {
+                System.out.println("   " + key); //$NON-NLS-1$
+            }
+        }
+
+        destinationOnlyKeys = new HashSet<>(destinationState.getPlatformResourceVersions().keySet());
+        destinationOnlyKeys.removeAll(sourceState.getPlatformResourceVersions().keySet());
+        if (!destinationOnlyKeys.isEmpty())
+        {
+            System.out.println("  Destination only 1C:Enterprise resources:"); //$NON-NLS-1$
+            for (String key : destinationOnlyKeys)
+            {
+                System.out.println("   " + key); //$NON-NLS-1$
+            }
+        }
+
+        bothSideKeys = new HashSet<>(sourceState.getPlatformResourceVersions().keySet());
+        bothSideKeys.retainAll(destinationState.getPlatformResourceVersions().keySet());
+        first = true;
+        for (String key : bothSideKeys)
+        {
+            String sourceVersion = sourceState.getPlatformResourceVersions().get(key);
+            String destinationVersion = destinationState.getPlatformResourceVersions().get(key);
+
+            if (!sourceVersion.equals(destinationVersion))
+            {
+                if (first)
+                {
+                    System.out.println("  1C:Enterprise resource version differences"); //$NON-NLS-1$
+                    first = false;
+                }
+
+                System.out.println("    " + key + " S:" + sourceVersion + " D:" + destinationVersion); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+            }
+        }
+    }
+
+    private static InfobaseSyncState parseState(Path syncStateFolder)
+    {
+        long timestamp = 0;
+        String generationId = null;
+        String configurationId = null;
+        Map<String, byte[]> edtSignatures = null;
+
+        // TODO check if we have extensions without a base
+        Path storePath = syncStateFolder.resolve(INDEX_FILE);
+        if (!storePath.toFile().exists())
+        {
+            System.out.println(
+                MessageFormat.format("'index.idx' file is absent for configuration state {0}", syncStateFolder)); //$NON-NLS-1$
+        }
+        else
+        {
+            try (DataInputStream dis = new DataInputStream(new FileInputStream(storePath.toFile())))
+            {
+                timestamp = dis.readLong();
+
+                int count = dis.readInt();
+                edtSignatures = new HashMap<>(count);
+                for (int idx = 0; idx < count; idx++)
+                {
+                    String key = normalizePath(dis.readUTF());
+                    int valueSize = dis.readInt();
+                    byte[] value = new byte[valueSize];
+                    dis.read(value);
+
+                    edtSignatures.put(key, value);
+                }
+
+                generationId = dis.readUTF();
+                configurationId = dis.readUTF();
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace(System.out);
+                return null;
+            }
+        }
+
+        ConfigDumpParseResult mainPlatformResourceVersions = null;
+        Path cdiPath = syncStateFolder.resolve(IConfigDumpInfoStore.CONFIG_DUMP_INFO);
+        if (!cdiPath.toFile().exists())
+        {
+            System.out.println(MessageFormat.format("'ConfigDumpInfo.xml' file is absent for configuration state {0}", //$NON-NLS-1$
+                syncStateFolder));
+        }
+        else
+        {
+            mainPlatformResourceVersions = parseConfigDump(cdiPath);
+        }
+
+        InfobaseSyncState state = new InfobaseSyncState(timestamp, configurationId, edtSignatures,
+            mainPlatformResourceVersions != null ? mainPlatformResourceVersions.versions : null, generationId);
+
+        addActualExtensionState(syncStateFolder, state);
+
+        return state;
+    }
+
+    private static String normalizePath(String rawPath)
+    {
+        return rawPath.replace('\\', (char)PATH_SEPARATOR);
+    }
+
+    private static void addActualExtensionState(Path syncStateFolder, InfobaseSyncState state)
+    {
+        Path extensionStorePath = syncStateFolder.resolve(EXTENSION_SYNC_STATE_HOLDER);
+        if (!extensionStorePath.toFile().exists())
+        {
+            // No extension indexes found
+            return;
+        }
+
+        String[] subdirs = extensionStorePath.toFile().list();
+        for (String extensionName : subdirs)
+        {
+            Path extensionDirPath = extensionStorePath.resolve(extensionName);
+            File extensionDir = extensionDirPath.toFile();
+            if (extensionDir.isDirectory())
+            {
+                long timestamp = 0;
+                String generationId = null;
+                String configurationId = null;
+                Map<String, byte[]> edtSignatures = null;
+
+                Path storePath = extensionDirPath.resolve(INDEX_FILE);
+                if (!storePath.toFile().exists())
+                {
+                    System.out.println(MessageFormat.format("'index.idx' file is absent for extension state {0}", //$NON-NLS-1$
+                        extensionName));
+                }
+                else
+                {
+                    try (DataInputStream dis = new DataInputStream(new FileInputStream(storePath.toFile())))
+                    {
+                        timestamp = dis.readLong();
+
+                        int count = dis.readInt();
+                        edtSignatures = new HashMap<>(count);
+                        for (int idx = 0; idx < count; idx++)
+                        {
+                            String key = dis.readUTF();
+                            int valueSize = dis.readInt();
+                            byte[] value = new byte[valueSize];
+                            dis.read(value);
+
+                            edtSignatures.put(key, value);
+                        }
+
+                        generationId = dis.readUTF();
+                        configurationId = dis.readUTF();
+                    }
+                    catch (Exception e)
+                    {
+                        e.printStackTrace(System.out);
+                        continue;
+                    }
+                }
+
+                Path cdiPath = extensionDirPath.resolve(IConfigDumpInfoStore.CONFIG_DUMP_INFO);
+                if (!cdiPath.toFile().exists())
+                {
+                    System.out
+                        .println(MessageFormat.format("'ConfigDumpInfo.xml' file is absent for extension state {0}", //$NON-NLS-1$
+                            extensionName));
+                }
+
+                ConfigDumpParseResult extensionPlatformResourceVersions = parseConfigDump(cdiPath);
+                state.getExtensionSyncStates()
+                    .put(extensionName, new InfobaseSyncState(timestamp, configurationId, edtSignatures,
+                        extensionPlatformResourceVersions.versions, generationId));
+            }
+        }
+    }
+
     private static void updateIBSynchronizationState(Map<Path, byte[]> signatures,
         ConfigDumpParseResult configDumpInfoParseResult, String generationId, Path sourceProjectFolder,
         Path targetFolder)
@@ -100,7 +367,7 @@ public class EdtIBSynchronizationStateManager
             for (Entry<Path, byte[]> entry : signatures.entrySet())
             {
                 // Resource path
-                dao.writeUTF(sourceProjectFolder.relativize(entry.getKey()).toString());
+                dao.writeUTF(normalizePath(sourceProjectFolder.relativize(entry.getKey()).toString()));
                 // Signature length
                 dao.writeInt(entry.getValue().length);
                 // Signature body

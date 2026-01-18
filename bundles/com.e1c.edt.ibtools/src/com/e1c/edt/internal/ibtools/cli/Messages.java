@@ -26,6 +26,12 @@ class Messages
     public static String GenerateIBSyncStateCmd_SourceConfigDumpInfoFile__0__does_not_exist;
     public static String GenerateIBSyncStateCmd_TargetIBUuid__0__is_invalid;
 
+    public static String CompareIBSyncStatesCmd_Description;
+    public static String CompareIBSyncStatesCmd_Source_Synchronization_Index_Location;
+    public static String CompareIBSyncStatesCmd_Destination_Synchronization_Index_Location;
+    public static String CompareIBSyncStatesCmd_SourceIndexFolder__0__does_not_exist;
+    public static String CompareIBSyncStatesCmd_DestinationIndexFolder__0__does_not_exist;
+
     static
     {
         NLS.initializeMessages(BUNDLE_NAME, Messages.class);
